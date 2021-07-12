@@ -38,9 +38,11 @@ Submariner 是由 Rancher 开源的跨集群网络互通解决方案，通过创
 
 ### 功能
 
+- 向下支持更多版本的 Kubernetes，目前可以支持到 `>=0.15.0`
 - 自动发现不同 Kubernetes 提供商 (aws, gcp)， 预先配置 Submariner 依赖端口
 - 允许自定义安装 Submariner 相关组件，`Globalnet`, `Lighthouse`
 - 适配现有常见的的网络 CNI 插件，如 generic, Canal, Weave-net, OpenshiftSDN, OVNKubernetes, Flannel 和 Calico。
+- 针对 Calico 网络插件定制化开发支持
 
 ### API 定义
 
@@ -65,13 +67,16 @@ type KnitnetSpec struct {
 }
 ```
 
-API定义：
+API定义:
+
 ```yaml
 apiVersion: operator.tkestack.io/v1alpha1
 kind: Knitnet
 ```
 
-### 部署 Submariner broker, 创建下面的资源
+### 部署 Submariner broker
+
+创建下面的资源
 
 ```yaml
 apiVersion: operator.tkestack.io/v1alpha1
@@ -83,17 +88,17 @@ spec:
   brokerConfig:
     defaultGlobalnetClusterSize: 65336
     globalnetCIDRRange: 242.0.0.0/16
-    globalnetEnable: false
+    globalnetEnable: true
     serviceDiscoveryEnabled: true
 ```
 
-当上面的资源创建成功后，会输出一个 `submariner-broker-info` 的 ConfigMap，这个 ConfigMap 信息主要是给其它集群加入 broker 用的。
+当上面的资源创建成功后，会生成一个 ConfigMap `submariner-broker-info`。这个 ConfigMap 信息主要是保存 `broker` 集群的相关信息，为其他集群加入 broker 使用。
 
 ### 添加集群到 Submariner Broker
 
 添加集群需要部署2个资源，`submariner-broker-info` ConfigMap 和 join broker CR
 
-`submariner-broker-info` 的信息在 broker 集群的 ConfigMap 中可以查到: `kubectl get cm submariner-broker-info -oyaml`
+`submariner-broker-info` 的信息在 broker 集群的 ConfigMap 中可以查到: `kubectl -n knitnet-operator-system get cm submariner-broker-info -oyaml`
 
 ```yaml
 apiVersion: v1
@@ -105,10 +110,10 @@ metadata:
     operator.tkestack.io/knitnet-name: join-broker-sample
     operator.tkestack.io/knitnet-namespace: default
   name: submariner-broker-info
-  namespace: submariner-k8s-broker
+  namespace: knitnet-operator-system
 ```
 
-Join broker CR, `clusterID` 目前是必须填写的，后面可以做到自动发现，其它选项都是可选的，如果没有自定义，默认值会被启用。
+Join broker CR, `clusterID` 需要填写，如果没有填写，controller将会自动生成一个全局的 `clusterID`
 
 ```yaml
 apiVersion: operator.tkestack.io/v1alpha1
